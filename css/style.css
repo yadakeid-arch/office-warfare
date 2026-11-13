@@ -1,0 +1,228 @@
+  :root{
+    --ink:#e6e2d8;
+    --dim:#8b8578;
+    --amber:#e8a13a;
+    --blood:#a3271f;
+    --panel:rgba(8,9,11,.72);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#05070a;
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",YuGothic,"Noto Sans JP",sans-serif;
+    color:var(--ink);-webkit-font-smoothing:antialiased}
+  canvas{display:block}
+  #ui{position:fixed;inset:0;pointer-events:none;z-index:10}
+
+  #cross{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;
+    border:1px solid rgba(230,226,216,.55);border-radius:50%;transition:width .12s,height .12s,margin .12s}
+  #cross.wide{border-width:2px;border-color:rgba(232,161,58,.8);background:rgba(232,161,58,.07);
+    box-shadow:0 0 12px rgba(232,161,58,.25) inset}
+  #cross.cool{opacity:.3}
+  #cross.hit{border-color:#ff5a3c;box-shadow:0 0 10px #ff5a3c;transform:scale(2.1)}
+  #cross.wide.hit{transform:none;background:rgba(255,90,60,.18)}
+
+  /* 左上：プレイヤー一覧 */
+  #roster{position:absolute;left:18px;top:16px;background:var(--panel);padding:8px 13px;
+    font-size:12px;letter-spacing:.08em;line-height:1.85;min-width:190px}
+  #roster .pr b{font-weight:400;color:var(--amber);letter-spacing:.12em;margin-left:4px}
+  #roster .pr.out{opacity:.34;text-decoration:line-through}
+  #alivecount{color:var(--amber);letter-spacing:.2em;font-size:11px;margin-bottom:5px}
+
+  /* 右上：階層とライフ */
+  #status{position:absolute;right:18px;top:16px;text-align:right;background:var(--panel);
+    padding:6px 12px;font-size:12px;letter-spacing:.1em;line-height:1.6}
+  #status .fl{font-size:24px;letter-spacing:.04em;color:var(--amber);display:block;line-height:1}
+  #status .sub{font-size:10px;color:var(--dim);letter-spacing:.22em}
+  #status .hp{display:flex;gap:4px;justify-content:flex-end;margin-top:7px}
+  #status .hp i{width:22px;height:5px;background:#b8332a;box-shadow:0 0 6px rgba(184,51,42,.7)}
+  #status .hp i.gone{background:rgba(255,255,255,.13);box-shadow:none}
+  #status .sh{display:none;gap:4px;justify-content:flex-end;align-items:center;margin-top:6px}
+  #status .sh b{font-size:9px;font-weight:400;color:var(--dim);letter-spacing:.1em;margin-right:2px}
+  #status .sh i{width:14px;height:5px;background:#5aa8d8;box-shadow:0 0 6px rgba(90,168,216,.7)}
+  #status .sh i.gone{background:rgba(255,255,255,.13);box-shadow:none}
+  #status .sh.warn i{animation:pulse .55s infinite}
+  #status .dn{color:#e8503c;font-size:12px;font-weight:400;letter-spacing:.1em;animation:pulse .8s infinite}
+  #status .pot{color:#5fd06a;font-size:12px;font-weight:400;letter-spacing:.1em}
+  #roster .dn{font-style:normal;color:#e8503c;font-size:10px}
+  #roster .pot{font-style:normal;color:#5fd06a;font-size:10px}
+  #status .crouch{display:none;margin-top:6px;font-size:10px;letter-spacing:.2em;color:#8fc7e8}
+  #cross.head{border-color:#ffd34a;box-shadow:0 0 14px #ffd34a;transform:scale(2.4)}
+  #cross.wide.head{transform:none;background:rgba(255,211,74,.22)}
+  #status.low .hp i{animation:pulse .9s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.32}}
+
+  #stam{position:absolute;left:18px;bottom:18px;width:170px;height:3px;
+    background:rgba(255,255,255,.12);opacity:0;transition:opacity .35s}
+  #stamfill{height:100%;width:100%;background:var(--dim);transition:background .3s}
+
+  #prompt{position:absolute;left:50%;top:57%;transform:translate(-50%,-50%);
+    font-size:17px;letter-spacing:.08em;opacity:0;transition:opacity .12s;white-space:nowrap;
+    text-shadow:0 2px 12px #000;padding:6px 14px;background:rgba(6,8,11,.55)}
+  #prompt span{display:inline-block;border:1px solid var(--amber);color:var(--amber);border-radius:3px;
+    padding:1px 8px;margin-right:10px;font-size:13px}
+
+  #msg{position:absolute;left:50%;top:24%;transform:translate(-50%,-50%);opacity:0;
+    transition:opacity .4s;font-size:17px;letter-spacing:.1em;line-height:1.7;text-align:center;
+    color:var(--ink);text-shadow:0 2px 14px #000;background:rgba(6,8,11,.5);padding:9px 22px;
+    max-width:min(80vw,640px)}
+  #spawnlabel{position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);display:none;
+    font-size:26px;letter-spacing:.3em;color:var(--amber);text-shadow:0 2px 18px #000}
+  #dead{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);display:none;text-align:center}
+  #dead h3{font-size:34px;letter-spacing:.34em;color:var(--blood);text-shadow:0 0 26px rgba(163,39,31,.8)}
+  #dead p{margin-top:10px;font-size:12px;letter-spacing:.16em;color:var(--dim)}
+
+  #elev{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;display:none}
+  #elev p{font-size:17px;letter-spacing:.14em;margin-bottom:16px;text-shadow:0 2px 12px #000}
+  #elev .btns{display:flex;gap:14px;justify-content:center}
+  #elev .b{width:64px;height:64px;border:1px solid rgba(232,161,58,.5);color:var(--amber);
+    display:flex;align-items:center;justify-content:center;font-size:20px;
+    background:rgba(232,161,58,.06)}
+  #elev .b.cur{opacity:.3}
+  #elev .b.off{opacity:.22;border-color:#5a4a44;color:#7a6a64;text-decoration:line-through}
+  #elev .hint{margin-top:14px;font-size:11px;color:var(--dim);letter-spacing:.16em}
+
+  .veil{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+    padding:28px 20px;overflow:auto}
+  #lobby{background:radial-gradient(circle at 50% 38%,#0d1116 0%,#05070a 72%)}
+  .card{width:min(540px,100%);margin:auto;display:flex;flex-direction:column;align-items:center;
+    text-align:center;gap:0}
+  #lobby h1{font-size:clamp(24px,6vw,44px);letter-spacing:.24em;font-weight:400;
+    margin-left:.24em;line-height:1.25}
+  #lobby h1 em{font-style:normal;color:var(--blood)}
+  #lobby .sub{margin-top:10px;font-size:11px;letter-spacing:.28em;color:var(--dim)}
+  .rules{margin-top:22px;width:100%;text-align:left;font-size:12.5px;line-height:2;color:#c9c4ba;
+    background:rgba(255,255,255,.03);border-left:2px solid rgba(232,161,58,.4);padding:14px 18px}
+  .rules kbd{display:inline-block;border:1px solid #4a4740;border-radius:3px;padding:0 6px;
+    margin:0 2px;font-family:inherit;font-size:11px;color:var(--ink)}
+  .sect{width:100%;margin-top:22px;padding-top:20px;border-top:1px solid rgba(255,255,255,.09)}
+  .sectlab{font-size:10px;letter-spacing:.28em;color:var(--dim);margin-bottom:12px}
+  .row{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap}
+  .veil button{pointer-events:auto;cursor:pointer;background:none;border:1px solid var(--amber);
+    color:var(--amber);padding:12px 26px;font-size:12.5px;letter-spacing:.2em;font-family:inherit;
+    transition:.2s;white-space:nowrap}
+  .veil button:hover{background:var(--amber);color:#05070a}
+  .veil button.sub2{border-color:#56524b;color:var(--dim);padding:10px 18px;font-size:11.5px;
+    letter-spacing:.14em}
+  .veil button.sub2:hover{background:#56524b;color:#05070a}
+  #roomin{pointer-events:auto;background:rgba(255,255,255,.05);border:1px solid #3a3a3a;
+    color:var(--ink);padding:12px 10px;font-size:19px;letter-spacing:.35em;width:132px;
+    text-align:center;font-family:inherit}
+  #roomcode{font-size:clamp(32px,9vw,56px);letter-spacing:.32em;color:var(--amber);
+    margin-left:.32em;line-height:1.2}
+  #lobbyplayers{margin-top:18px;font-size:13px;line-height:2;letter-spacing:.1em}
+  #lobbyplayers .lp.empty{color:#4d4a45}
+  #lobbyinfo{margin-top:16px;font-size:12px;color:var(--dim);letter-spacing:.08em;
+    min-height:1.6em;text-align:center;width:min(540px,100%)}
+  #opts{margin-top:18px;display:flex;gap:16px;align-items:center;justify-content:center;
+    flex-wrap:wrap;font-size:11px;color:var(--dim);letter-spacing:.12em;pointer-events:auto}
+  #opts input[type=range]{vertical-align:middle;margin-left:8px;width:120px;accent-color:#e8a13a}
+  #bgmbtn{cursor:pointer;border:1px solid #3a3a3a;padding:4px 12px;color:var(--dim);
+    letter-spacing:.12em;background:none;font-family:inherit;font-size:11px}
+  #bgmbtn.on{border-color:rgba(232,161,58,.6);color:var(--amber)}
+  #step2{display:none}
+  .modebtn.on{border-color:var(--amber);color:var(--amber);background:rgba(232,161,58,.10)}
+  #modesect.guest .modebtn{pointer-events:none;opacity:.45}
+  #modesect.guest .modebtn.on{opacity:1}
+  #modedesc{margin-top:12px;font-size:11.5px;line-height:1.9;color:var(--dim);letter-spacing:.06em}
+
+  #win{background:rgba(5,7,10,.86);display:none;backdrop-filter:blur(3px)}
+  #win .card{gap:0}
+  #wintitle{font-size:clamp(28px,7vw,56px);letter-spacing:.34em;margin-left:.34em}
+  #wintext{margin-top:16px;font-size:14px;letter-spacing:.14em;color:#c9c4ba;line-height:2}
+
+  #vig{position:fixed;inset:0;pointer-events:none;z-index:9;
+    background:radial-gradient(ellipse at 50% 50%,transparent 46%,rgba(0,0,0,.72) 100%)}
+  #bossbar{position:fixed;left:50%;top:22px;transform:translateX(-50%);z-index:11;display:none;
+    width:min(420px,70vw);text-align:center;pointer-events:none}
+  #bossbar b{font-size:10px;letter-spacing:.32em;color:#d8503c;font-weight:400}
+  #bossbar .bf{margin-top:5px;height:7px;background:rgba(255,255,255,.12)}
+  #bossbar i{display:block;height:100%;width:100%;background:#b8332a;
+    box-shadow:0 0 10px rgba(184,51,42,.8);transition:width .2s}
+  #roster .kills{font-style:normal;color:#e8c23a;font-size:10px;letter-spacing:.06em}
+  #lockv{position:fixed;inset:0;pointer-events:none;z-index:9;display:none;
+    background:radial-gradient(ellipse at 50% 50%,transparent 20%,rgba(180,24,16,.78) 100%);
+    animation:lockflash .7s infinite}
+  @keyframes lockflash{0%,100%{opacity:.25}50%{opacity:1}}
+  #dmg{position:fixed;inset:0;pointer-events:none;z-index:9;opacity:0;
+    background:radial-gradient(ellipse at 50% 50%,transparent 26%,rgba(150,20,14,.72) 100%);
+    transition:opacity .25s}
+
+/* ============================================================
+   追加分：読み込み画面・ヒットマーカー・キルログ・被弾方向・設定
+   ============================================================ */
+#load{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:radial-gradient(circle at 50% 38%,#0d1116 0%,#05070a 72%);
+  transition:opacity .5s}
+#load.done{opacity:0;pointer-events:none}
+#load h1{font-size:clamp(22px,5vw,38px);letter-spacing:.24em;font-weight:400;margin-left:.24em}
+#load h1 em{font-style:normal;color:var(--blood)}
+#load .bar{margin-top:30px;width:min(320px,70vw);height:3px;background:rgba(255,255,255,.10)}
+#load .bar i{display:block;height:100%;width:0;background:var(--amber);
+  box-shadow:0 0 10px rgba(232,161,58,.7);transition:width .2s}
+#load .lt{margin-top:14px;font-size:10px;letter-spacing:.3em;color:var(--dim)}
+#load .warn{margin-top:22px;max-width:440px;font-size:12px;line-height:1.9;color:#e8a13a;
+  text-align:center;padding:0 20px;display:none}
+
+#hitm{position:absolute;left:50%;top:50%;width:0;height:0;opacity:0;transition:opacity .22s}
+#hitm.show{opacity:1;transition:none}
+#hitm i{position:absolute;width:11px;height:2px;background:#fff;box-shadow:0 0 5px rgba(0,0,0,.9);
+  transform-origin:0 50%}
+#hitm i:nth-child(1){transform:rotate(45deg) translateX(7px)}
+#hitm i:nth-child(2){transform:rotate(135deg) translateX(7px)}
+#hitm i:nth-child(3){transform:rotate(225deg) translateX(7px)}
+#hitm i:nth-child(4){transform:rotate(315deg) translateX(7px)}
+#hitm.head i{background:#ffd34a;box-shadow:0 0 9px #ffd34a;width:13px}
+#hitm.kill i{background:#ff5a3c;box-shadow:0 0 10px #ff5a3c;width:16px;height:3px}
+
+#feed{position:absolute;right:18px;top:132px;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+#feed .fe{background:var(--panel);padding:5px 11px;font-size:11px;letter-spacing:.10em;
+  border-right:2px solid rgba(232,161,58,.55);animation:fein .25s ease-out;transition:opacity .5s}
+#feed .fe.out{opacity:0}
+#feed .fe b{font-weight:400}
+#feed .fe span{color:var(--dim);margin:0 3px}
+#feed .fe em{font-style:normal;color:#e8503c;margin-left:6px;font-size:10px;letter-spacing:.16em}
+@keyframes fein{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+
+#dmgdir{position:absolute;left:50%;top:50%;width:0;height:0;opacity:0;transition:opacity .6s}
+#dmgdir.show{opacity:1;transition:none}
+#dmgdir i{position:absolute;left:-70px;top:-24vh;width:140px;height:40px;
+  border-top:5px solid rgba(232,60,40,.95);border-radius:50%/100% 100% 0 0;
+  filter:drop-shadow(0 0 8px rgba(232,60,40,.9))}
+
+#killmsg{position:absolute;left:50%;top:62%;transform:translateX(-50%);opacity:0;white-space:nowrap;
+  font-size:13px;letter-spacing:.30em;color:#e6e2d8;text-shadow:0 0 12px rgba(0,0,0,.9);
+  transition:opacity .5s}
+#killmsg.show{opacity:1;transition:none}
+#killmsg b{font-weight:400;margin-left:8px}
+#killmsg.out{color:#ff5a3c}
+
+body.lowlife #vig{box-shadow:inset 0 0 150px rgba(170,24,16,.55);animation:pulse 1.1s infinite}
+
+#pause,#optveil{display:none;z-index:30;background:rgba(5,7,10,.78);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#optveil{z-index:40;background:rgba(5,7,10,.92)}
+#pause h2,#optveil h2{font-size:22px;letter-spacing:.34em;font-weight:400;margin-left:.34em}
+#pause .pnote{margin-top:8px;font-size:10px;letter-spacing:.24em;color:var(--dim)}
+.optbox{width:min(420px,100%);margin-top:24px;display:flex;flex-direction:column;gap:14px;pointer-events:auto}
+.optrow{display:flex;align-items:center;gap:12px;font-size:12px;letter-spacing:.08em}
+.optrow label{width:110px;text-align:left;color:#c9c4ba}
+.optrow input[type=range]{flex:1;accent-color:#e8a13a;cursor:pointer}
+.optrow output{width:38px;text-align:right;color:var(--amber);font-size:11px}
+.optrow .seg{flex:1;display:flex;gap:6px}
+.veil .optrow .seg button{flex:1;padding:8px 0;font-size:11.5px;border-color:#56524b;color:var(--dim);letter-spacing:.2em}
+.veil .optrow .seg button.on{border-color:var(--amber);color:var(--amber)}
+.optnote{min-height:16px;font-size:11px;color:var(--amber);letter-spacing:.06em}
+
+#winstats{width:100%;margin-top:22px}
+#winstats .st{display:flex;justify-content:center;gap:22px;flex-wrap:wrap;font-size:10px;
+  letter-spacing:.16em;color:var(--dim)}
+#winstats .st b{display:block;font-size:22px;font-weight:400;color:var(--ink);letter-spacing:.04em;margin-bottom:4px}
+#winstats .rk{margin-top:18px;display:flex;flex-direction:column;gap:6px;font-size:12px;letter-spacing:.12em}
+#winstats .rk b{font-weight:400}
+#winstats .rk span{color:var(--dim);margin-left:14px}
+
+/* タイトル画面：カードと案内文を縦に並べて中央へ（横に並んで左へ寄っていたのを修正） */
+#lobby{flex-direction:column;justify-content:flex-start}
+#lobby .card{margin:auto auto 0}
+#lobbyinfo{margin:16px auto auto}
+.veil #optbtn{cursor:pointer;border:1px solid #3a3a3a;padding:4px 12px;color:var(--dim);
+  background:none;font-size:11px;letter-spacing:.12em;font-family:inherit}
+.veil #optbtn:hover{background:none;border-color:rgba(232,161,58,.6);color:var(--amber)}
