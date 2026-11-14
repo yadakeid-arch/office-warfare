@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OFFICE WARFARE ── 5階建てオフィス対戦シューティング</title>
+<meta name="description" content="5階建てオフィスビルを舞台にした、ブラウザで遊べる対戦型3Dシューティング。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2305070a'/%3E%3Crect x='3' y='7' width='10' height='2' fill='%23e8a13a'/%3E%3Crect x='7' y='3' width='2' height='10' fill='%23e8a13a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="load">
+  <h1>OFFICE <em>WARFARE</em></h1>
+  <div class="bar"><i id="loadfill"></i></div>
+  <div class="lt" id="loadtext">LOADING</div>
+  <div class="warn" id="loadwarn"></div>
+</div>
+
+
+<div id="vig"></div>
+<div id="dmg"></div>
+<div id="bossbar"><b>BOSS</b><div class="bf"><i id="bossfill"></i></div></div>
+<div id="lockv"></div>
+
+<div id="ui">
+  <div id="cross"></div>
+  <div id="roster"><div id="alivecount">残り 0人</div></div>
+  <div id="status"><span class="fl" id="floorlabel">1F</span><span class="sub">FLOOR</span>
+    <div class="hp" id="hpbar"><i></i><i></i><i></i></div>
+    <div class="sh" id="shbar"></div>
+    <div class="crouch" id="crouchlab">しゃがみ中</div></div>
+  <div id="stam"><div id="stamfill"></div></div>
+  <div id="prompt"></div>
+  <div id="msg"></div>
+  <div id="spawnlabel"></div>
+  <div id="dead"><h3>ELIMINATED</h3><p>観戦中 ── 残りのプレイヤーを見守ろう</p></div>
+  <div id="elev">
+    <p>どのフロアに行きますか？</p>
+    <div class="btns">
+      <div class="b" id="eb1">1</div>
+      <div class="b" id="eb2">2</div>
+      <div class="b" id="eb3">3</div>
+      <div class="b" id="eb4">4</div>
+      <div class="b" id="eb5">5</div>
+      <div class="b" id="eb6">R</div>
+    </div>
+    <div class="hint">キーボードの 1 〜 6 で選択（6＝屋上）</div>
+  </div>
+</div>
+
+<div class="veil" id="lobby">
+  <div class="card" id="step1">
+    <h1>OFFICE <em>WARFARE</em></h1>
+    <div class="sub">5階建てオフィス ／ 最大4人 バトルロイヤル</div>
+
+    <div class="rules">
+      全員が拳銃を持ち、別々のフロアから始まる。弾は無限。<br>
+      撃たれたら敵のいないフロアへ飛ばされ、ライフが1減る。<br>
+      ライフは3。尽きたら脱落。最後の1人が勝ち。<br>
+      地下と屋上にはショットガンが落ちている。<br><br>
+      <kbd>WASD</kbd> 移動　<kbd>Shift</kbd> 走る　<kbd>左クリック</kbd> 撃つ<br>
+      <kbd>E</kbd> 調べる／拾う／開ける　<kbd>F</kbd> ライト　<kbd>C</kbd> しゃがむ
+    </div>
+
+    <div class="sect">
+      <div class="sectlab">ONLINE</div>
+      <div class="row">
+        <button id="hostbtn">ルームを作る</button>
+        <input id="roomin" maxlength="4" inputmode="numeric" placeholder="0000">
+        <button id="joinbtn">参加する</button>
+      </div>
+    </div>
+
+    <div class="sect">
+      <div class="sectlab">ひとりで試す</div>
+      <div class="row">
+        <button class="sub2" id="npc1">NPC 1体</button>
+        <button class="sub2" id="npc2">NPC 2体</button>
+        <button class="sub2" id="npc3">NPC 3体</button>
+      </div>
+    </div>
+
+    <div class="sect">
+      <div class="sectlab">ほかのゲーム</div>
+      <div class="row">
+        <button class="sub2 gamelink" onclick="location.href='night-shift.html'"><b>NIGHT <em>SHIFT</em></b><small>ひとり用の探索ホラー。暗い社屋から脱出する</small></button>
+      </div>
+    </div>
+
+    <div id="opts">
+      <span>マウス感度<input id="sensrange" type="range" min="20" max="240" value="100"></span>
+      <button id="optbtn">設定</button>
+      <button id="bgmbtn" class="on">BGM ON</button>
+    </div>
+  </div>
+
+  <div class="card" id="step2">
+    <div class="sub">ROOM CODE</div>
+    <div id="roomcode">----</div>
+    <div id="lobbyplayers"></div>
+    <div class="sect" id="modesect">
+      <div class="sectlab">MODE</div>
+      <div class="row">
+        <button class="sub2 modebtn" data-m="easy">EASY</button>
+        <button class="sub2 modebtn" data-m="normal">NORMAL</button>
+        <button class="sub2 modebtn" data-m="hard">HARD</button>
+        <button class="sub2 modebtn" data-m="team">TEAM</button>
+      </div>
+      <div id="modedesc"></div>
+    </div>
+    <div class="sect">
+      <div class="row"><button id="startbtn">開 始</button></div>
+    </div>
+  </div>
+
+  <div id="lobbyinfo"></div>
+</div>
+
+<div class="veil" id="win">
+  <div class="card">
+    <h2 id="wintitle">WINNER</h2>
+    <p id="wintext"></p>
+    <div id="winstats"></div>
+    <div class="sect"><div class="row"><button onclick="location.reload()">もう一度</button></div></div>
+  </div>
+</div>
+
+<audio id="sfxgun" preload="auto" src="assets/audio/gunshot.mp3"></audio>
+<audio id="bgmmenu" loop preload="auto" src="assets/audio/bgm_menu.mp3"></audio>
+<audio id="alarm" loop preload="auto" src="assets/audio/alarm.mp3"></audio>
+<audio id="bgmboss" loop preload="none" src="assets/audio/bgm_boss.mp3"></audio>
+
+<script src="js/boot.js"></script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NIGHT SHIFT ── オフィス脱出ホラー</title>
+<meta name="description" content="電源の落ちた社屋から脱出する、ブラウザで遊べる一人称の探索ホラー。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2305070a'/%3E%3Crect x='3' y='7' width='10' height='2' fill='%23a3271f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/night-shift.css">
+</head>
+<body>
+
+<div id="load">
+  <h1>NIGHT <em>SHIFT</em></h1>
+  <div class="bar"><i id="loadfill"></i></div>
+  <div class="lt" id="loadtext">LOADING</div>
+  <div class="warn" id="loadwarn"></div>
+</div>
+
+<div id="vig"></div>
+<div id="dmg"></div>
+<div id="lowhp"></div>
+<div id="flash"></div>
+
+<div id="ui">
+  <div id="cross"></div>
+  <div id="objective"><b>OBJECTIVE</b><span id="objtext">まずは廊下を調べろ。</span></div>
+  <div id="status"><span class="fl" id="floorlabel">3F</span><span id="timelabel">00:00</span>
+    <div class="hp" id="hpbar"><i></i><i></i><i></i></div>
+    <div id="ammo">AMMO <b id="ammotext">------</b></div></div>
+  <div id="inv"><b>ITEMS</b><div id="invlist" class="none">なし</div></div>
+  <div id="stam"><div id="stamfill"></div></div>
+  <div id="prompt"></div>
+  <div id="msg"></div>
+  <div id="hold"></div>
+  <div id="choice">
+    <p id="choicetext">警察に電話しますか？</p>
+    <div class="btns">
+      <div class="b" id="cb1">はい<small>KEY 1</small></div>
+      <div class="b" id="cb2">いいえ<small>KEY 2</small></div>
+    </div>
+    <div class="hint">キーボードの 1 / 2 で選択</div>
+  </div>
+  <div id="elev">
+    <p>どのフロアに行きますか？</p>
+    <div class="btns">
+      <div class="b" id="eb1">1<small>FLOOR</small></div>
+      <div class="b" id="eb2">2<small>FLOOR</small></div>
+      <div class="b" id="eb3">3<small>FLOOR</small></div>
+    </div>
+    <div class="hint">キーボードの 1 / 2 / 3 で選択</div>
+  </div>
+</div>
+
+<div class="veil" id="title">
+  <h1>NIGHT <em>SHIFT</em></h1>
+  <div class="sub">3F → 2F → 1F ／ 脱出せよ</div>
+  <div class="story">
+    残業のさなか、ビルの電源が落ちた。<br>
+    非常灯だけが灯る社屋には、もう自分以外の人間はいないはずだった。<br>
+    エレベーターは死んでいる。非常階段の扉は施錠されている。<br>
+    ここは3階。地上へ降りるしか、道はない。
+  </div>
+  <div class="keys">
+    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移動　<kbd>Shift</kbd> ダッシュ　マウス 視点<br>
+    <kbd>E</kbd> 調べる／拾う／開ける　<kbd>F</kbd> ライト　<kbd>Esc</kbd> ポーズ<br>
+    つかまれると体力を1失う。3回で終わり。<br>
+    銃を拾うと <kbd>左クリック</kbd> で発砲できる。
+  </div>
+  <div id="diff">
+    <div class="d" data-m="easy"><b>EASY</b><small>照明あり／拳銃を所持<br>弾数無制限／体力5</small></div>
+    <div class="d sel" data-m="normal"><b>NORMAL</b><small>暗闇からの探索<br>弾は最大30発／体力3</small></div>
+    <div class="d" data-m="hard"><b>HARD</b><small>暗闇からの探索<br>弾は最大10発／体力2</small></div>
+  </div>
+  <div id="sens">マウス感度<input id="sensrange" type="range" min="20" max="240" value="100"></div>
+  <div class="nslinks"><button id="optbtn">設定</button><a href="index.html">← OFFICE WARFARE（対戦）へ</a></div>
+  <button id="startbtn">S T A R T</button>
+</div>
+
+<div class="veil" id="over">
+  <h2>CAUGHT</h2>
+  <p id="overtext">──暗がりの中で、冷たい手が肩をつかんだ。もう振りほどけない。</p>
+  <button onclick="location.reload()">RETRY</button>
+</div>
+
+<div class="veil" id="clear">
+  <h2>ゲームクリア</h2>
+  <p id="cleartext"></p>
+  <button onclick="location.reload()">PLAY AGAIN</button>
+</div>
+
+
+<audio id="bgm1" loop preload="auto" src="assets/audio/ns_bgm1.mp3"></audio>
+<audio id="bgm" loop preload="auto" src="assets/audio/ns_bgm2.mp3"></audio>
+<audio id="heli" loop preload="auto" src="assets/audio/heli.mp3"></audio>
+<audio id="sfxgun" preload="auto" src="assets/audio/gunshot.mp3"></audio>
+
+<script>
+window.BOOT={
+  pauseNote:"ゲームは止まりません",
+  files:{pistol:"assets/models/pistol.glb",zombie:"assets/models/zombie.glb",gunshot:"assets/audio/gunshot.mp3"},
+  scripts:["js/vendor/three.min.js","js/vendor/GLTFLoader.js","js/vendor/SkeletonUtils.js","js/vendor/postprocessing.js","js/fx.js","js/night-shift.js"]
+};
+</script>
+<script src="js/boot.js"></script>
+</body>
+</html>
