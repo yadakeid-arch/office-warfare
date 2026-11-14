@@ -620,6 +620,230 @@ api.avatar=function(slot,core,legs,arms,body,dark){
 };
 
 /* ============================================================
+   ゾンビ・ボスの質感
+   元のテクスチャは512pxで法線マップも無いので、読み込み時に
+   2倍へ拡大して輪郭を立て、明暗から凹凸（法線マップ）を作る。
+   あわせて個体ごとに色味と背丈を少し変え、同じ顔の行列に見えないようにする
+   ============================================================ */
+function enhanceTexture(src){
+  const im=src.image; if(!im||!im.width) return null;
+  const W=Math.min(1024,im.width*2), H=Math.min(1024,im.height*2);
+  const c=document.createElement("canvas"); c.width=W; c.height=H;
+  const g=c.getContext("2d");
+  g.imageSmoothingEnabled=true; g.imageSmoothingQuality="high";
+  g.drawImage(im,0,0,W,H);
+  const id=g.getImageData(0,0,W,H), d=id.data, n=W*H;
+  const lum=new Float32Array(n);
+  for(let i=0;i<n;i++) lum[i]=(d[i*4]*0.299+d[i*4+1]*0.587+d[i*4+2]*0.114)/255;
+  /* 輪郭を立てる（アンシャープマスク） */
+  const out=new Uint8ClampedArray(d.length);
+  for(let y=0;y<H;y++){
+    const y0=(y?y-1:y)*W, y1=y*W, y2=(y<H-1?y+1:y)*W;
+    for(let x=0;x<W;x++){
+      const x0=x?x-1:x, x2=x<W-1?x+1:x, o=(y1+x)*4;
+      for(let k=0;k<3;k++){
+        const b=(d[(y0+x0)*4+k]+d[(y0+x)*4+k]+d[(y0+x2)*4+k]+d[(y1+x0)*4+k]+d[o+k]+
+                 d[(y1+x2)*4+k]+d[(y2+x0)*4+k]+d[(y2+x)*4+k]+d[(y2+x2)*4+k])/9;
+        out[o+k]=d[o+k]+(d[o+k]-b)*1.1;
+      }
+      out[o+3]=d[o+3];
+    }
+  }
+  /* 明暗から法線マップ */
+  const nc=document.createElement("canvas"); nc.width=W; nc.height=H;
+  const ng=nc.getContext("2d"), nid=ng.createImageData(W,H), nd=nid.data, K=2.6;
+  for(let y=0;y<H;y++){
+    const ya=(y?y-1:y)*W, yb=(y<H-1?y+1:y)*W, y1=y*W;
+    for(let x=0;x<W;x++){
+      const xa=x?x-1:x, xb=x<W-1?x+1:x;
+      let nx=-(lum[y1+xb]-lum[y1+xa])*K, ny=-(lum[yb+x]-lum[ya+x])*K;
+      const l=1/Math.sqrt(nx*nx+ny*ny+1), o=(y1+x)*4;
+      nd[o]=(nx*l*0.5+0.5)*255; nd[o+1]=(ny*l*0.5+0.5)*255; nd[o+2]=(l*0.5+0.5)*255; nd[o+3]=255;
+    }
+  }
+  id.data.set(out); g.putImageData(id,0,0); ng.putImageData(nid,0,0);
+  const mk=(cv,srgb)=>{
+    const t=new THREE.CanvasTexture(cv);
+    t.flipY=src.flipY; t.wrapS=src.wrapS; t.wrapT=src.wrapT;
+    if(srgb) t.encoding=THREE.sRGBEncoding;
+    t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+    return t;
+  };
+  return {map:mk(c,true),normal:mk(nc,false)};
+}
+let zSpecTex=null;
+function zombieSpec(){
+  if(!zSpecTex){
+    zSpecTex=new THREE.TextureLoader().load("assets/models/zombie_spec.jpg");
+    zSpecTex.flipY=false; zSpecTex.wrapS=zSpecTex.wrapT=THREE.RepeatWrapping;
+  }
+  return zSpecTex;
+}
+api.skinMat=function(m,orig){
+  if(m.map) m.map.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+  if(!Q.lit) return m;
+  try{
+    const p=new THREE.MeshPhongMaterial({
+      map:m.map,color:m.color.clone(),skinning:true,side:m.side,
+      transparent:m.transparent,alphaTest:m.alphaTest,depthWrite:m.depthWrite,
+      specular:0x3a3030,shininess:22});
+    if(orig&&orig.normalMap){
+      /* 元モデルに法線マップがある場合はそれを使う */
+      p.normalMap=orig.normalMap;
+      if(orig.normalScale) p.normalScale.copy(orig.normalScale);
+      if(orig.name==="body_M"&&!m.transparent){
+        p.specularMap=zombieSpec(); p.specular.setHex(0xc8beb4); p.shininess=42;   // 血で濡れた所だけ光る
+      }
+    }else if(m.map&&!m.transparent){
+      const e=enhanceTexture(m.map);
+      if(e){ p.map=e.map; p.normalMap=e.normal; p.normalScale=new THREE.Vector2(0.45,0.45); }
+    }
+    return p;
+  }catch(e){ return m; }
+};
+const ZTINT=[[1,1,1],[0.80,0.93,0.80],[0.70,0.71,0.78],[1.0,0.84,0.78],[0.82,0.88,1.0],[0.92,0.90,0.72]];
+api.zombieVariant=function(inst,id){
+  let h=(typeof id==="number"?id:0)*2654435761>>>0;
+  const vi=h%ZTINT.length, t=ZTINT[vi];
+  const tall=0.94+((h>>>8)%100)/100*0.12, wide=0.95+((h>>>16)%100)/100*0.12;
+  inst.scale.x*=wide; inst.scale.z*=wide; inst.scale.y*=tall;
+  if(vi===0) return;
+  inst.traverse(o=>{
+    if(!o.isMesh) return;
+    const src=o.material; if(!src||!src.color) return;
+    const vs=src.userData._var||(src.userData._var={});
+    if(!vs[vi]){ const c=src.clone(); c.color.setRGB(src.color.r*t[0],src.color.g*t[1],src.color.b*t[2]); vs[vi]=c; }
+    o.material=vs[vi];
+  });
+};
+
+/* ============================================================
+   ゾンビのアニメーション
+   通報前＝歩き／通報後に追ってくるとき＝走り／目の前＝噛みつき／倒した時＝倒れ込み
+   ============================================================ */
+let ZCLIP=null;
+const WALK_V=0.33, RUN_V=3.05;          // 各アニメが本来進む速さ（m/秒）
+api.zombieClips=function(anims){
+  ZCLIP={};
+  for(const a of anims||[]) if(a&&a.name) ZCLIP[a.name.toLowerCase()]=a;
+};
+api.zombieAttach=function(z,inst){
+  if(!ZCLIP||!ZCLIP.walk||!ZCLIP.idle) return false;
+  const mixer=new THREE.AnimationMixer(inst), A={};
+  for(const k of ["idle","walk","run","bite","death"]) if(ZCLIP[k]) A[k]=mixer.clipAction(ZCLIP[k]);
+  if(A.death){ A.death.setLoop(THREE.LoopOnce,1); A.death.clampWhenFinished=true; }
+  z.an={mixer:mixer,A:A,cur:null,v:0.4,lx:z.pos.x,lz:z.pos.z,biteT:0,first:true};
+  zPlay(z,"walk",0);
+  mixer.update(0);
+  return true;
+};
+function zPlay(z,name,fade){
+  const an=z.an;
+  if(an.cur===name||!an.A[name]) return;
+  const next=an.A[name], prev=an.cur?an.A[an.cur]:null;
+  next.reset(); next.setEffectiveTimeScale(1); next.setEffectiveWeight(1);
+  if(name==="walk"||name==="run"||name==="idle") next.time=Math.random()*next.getClip().duration;  // 足並みをそろえない
+  if(prev&&fade>0){ next.play(); prev.crossFadeTo(next,fade,false); }
+  else{ if(prev) prev.stop(); next.play(); }
+  an.cur=name;
+}
+function zNearPlayer(z){
+  let best=1e9;
+  for(let i=0;i<MAXP;i++){
+    const p=P[i]; if(!p.used||!p.alive||p.dn>0||p.down>0) continue;
+    const q=(i===net.mySlot)?player.pos:p;
+    if(i!==net.mySlot&&!p.init) continue;
+    if(Math.abs(q.y-z.y)>2.0) continue;
+    const d=Math.hypot(q.x-z.pos.x,q.z-z.pos.z);
+    if(d<best) best=d;
+  }
+  return best;
+}
+api.zombieAnim=function(z,dt){
+  const an=z.an;
+  const sp=Math.hypot(z.pos.x-an.lx,z.pos.z-an.lz)/Math.max(dt,0.001);
+  an.lx=z.pos.x; an.lz=z.pos.z;
+  if(sp<8) an.v+=(sp-an.v)*Math.min(1,dt*5);
+  if(an.biteT>0) an.biteT-=dt;
+  const near=Math.abs(z.y-player.pos.y)<2.4&&Math.hypot(z.pos.x-player.pos.x,z.pos.z-player.pos.z)<34;
+  if(!near) return;                         // 見えない階の個体は動かさない
+  if(an.A.bite&&z.state==="chase"&&zNearPlayer(z)<1.35) an.biteT=1.1;
+  let want="walk", rate=1;
+  if(an.biteT>0){ want="bite"; rate=1.5; }
+  else if(an.v<0.10){ want="idle"; }
+  else if(z.kind==="alert"&&z.state==="chase"&&an.A.run){
+    want="run"; rate=Math.max(0.72,Math.min(1.15,an.v/RUN_V*1.25));
+  }else{
+    rate=Math.max(1.0,Math.min(2.6,an.v/WALK_V*0.72));
+  }
+  zPlay(z,want,an.first?0:(want==="bite"?0.15:0.3)); an.first=false;
+  an.mixer.update(dt*rate);
+};
+
+/* ---------- 倒れた個体：倒れ込みを見せてから片付ける ---------- */
+const corpses=[]; let poolGeo=null, poolMat=null;
+const CORPSE_MAX=14, CORPSE_T=9.0;
+function initPools(){
+  const t=new THREE.CanvasTexture(cv(128,(g,s)=>{
+    const gr=g.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
+    gr.addColorStop(0,"rgba(255,255,255,1)"); gr.addColorStop(0.72,"rgba(255,255,255,.92)");
+    gr.addColorStop(1,"rgba(255,255,255,0)");
+    g.fillStyle=gr;
+    g.beginPath();
+    for(let i=0;i<=40;i++){
+      const a=i/40*Math.PI*2, r=s*0.5*(0.74+0.2*Math.sin(a*3+1)+0.06*Math.sin(a*7));
+      const x=s/2+Math.cos(a)*r, y=s/2+Math.sin(a)*r;
+      if(i) g.lineTo(x,y); else g.moveTo(x,y);
+    }
+    g.closePath(); g.fill();
+  }));
+  poolGeo=new THREE.PlaneGeometry(1,1); poolGeo.rotateX(-Math.PI/2);
+  poolMat=new THREE.MeshBasicMaterial({map:t,color:0x000000,transparent:true,opacity:0.86,depthWrite:false,
+    polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3});
+}
+function dropCorpse(c){
+  if(c.z.g&&c.z.g.parent) scene.remove(c.z.g);
+  if(c.pool&&c.pool.parent) scene.remove(c.pool);
+}
+api.zombieDie=function(z){
+  if(!z||!z.an||!z.an.A.death||z.boss) return false;
+  z.dead=true;
+  const i=zombies.indexOf(z); if(i>=0) zombies.splice(i,1);
+  z.g.rotation.z=0;
+  zPlay(z,"death",0.12);
+  let pool=null;
+  if(Q.fx>=1||corpses.length<6){
+    pool=new THREE.Mesh(poolGeo,poolMat);
+    pool.position.set(z.pos.x-Math.sin(z.dir)*0.95,z.y+0.012,z.pos.z-Math.cos(z.dir)*0.95);
+    pool.rotation.y=Math.random()*6.3; pool.scale.setScalar(0.01);
+    pool.renderOrder=2; pool.userData._sh=1; scene.add(pool);
+  }
+  corpses.push({z:z,t:0,pool:pool,size:0.9+Math.random()*0.5});
+  while(corpses.length>CORPSE_MAX) dropCorpse(corpses.shift());
+  return true;
+};
+function updateCorpses(dt){
+  if(poolMat){
+    const flOn=window.flashlight&&window.flashlight.intensity>0;
+    const k=Math.min(1,0.05+AMB.intensity*0.85+(flOn?0.3:0));
+    poolMat.color.setRGB(0.20*k,0.008*k,0.008*k);
+  }
+  for(let i=corpses.length-1;i>=0;i--){
+    const c=corpses[i]; c.t+=dt;
+    if(c.t<3.3) c.z.an.mixer.update(dt);
+    if(c.pool){
+      const g=Math.max(0,Math.min(1,(c.t-1.6)/3.5));
+      c.pool.scale.setScalar(0.01+c.size*(1-(1-g)*(1-g)));
+    }
+    if(c.t>CORPSE_T){                       // 床に沈めて消す
+      c.z.g.position.y-=dt*0.35;
+      if(c.pool) c.pool.material=poolMat, c.pool.scale.multiplyScalar(Math.max(0,1-dt*1.2));
+      if(c.t>CORPSE_T+1.6){ dropCorpse(c); corpses.splice(i,1); }
+    }
+  }
+}
+
+/* ============================================================
    画面表示（ヒットマーカー・キルログ・被弾方向・一時停止・設定）
    ============================================================ */
 const el={};
@@ -713,7 +937,7 @@ api.ready=function(){
   dotTex=softDot();
   sparks=new PS(Math.round(260*Q.fx),true);
   smoke=new PS(Math.round(220*Q.fx),false);
-  initDecals(); initShells(); initMuzzle(); initMotes(); initLamps(); initViewModel(); initHud();
+  initPools(); initDecals(); initShells(); initMuzzle(); initMotes(); initLamps(); initViewModel(); initHud();
   if(Q.shadow&&window.flashlight){
     const fl=window.flashlight;
     fl.castShadow=true;
@@ -877,6 +1101,7 @@ api.frame=function(dt){
     for(let i=0;i<emergLights.length;i++) emergLights[i].intensity*=ek;
   }
   updateShells(dt);
+  updateCorpses(dt);
   if(mflash&&mflash.visible){          // 低いフレームレートでも最低1コマは見せる
     if(mflashSeen&&mflashT<=0) mflash.visible=false;
     mflashT-=dt; mflashSeen=true;
@@ -923,6 +1148,6 @@ api.frame=function(dt){
   }
 };
 
-api.settings=S; api.quality=Q; api.stats=stats;
+api.settings=S; api.quality=Q; api.stats=stats; api._zPlay=zPlay;
 return api;
 })();

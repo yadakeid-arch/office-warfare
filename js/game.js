@@ -2467,7 +2467,7 @@ function toLambertSkin(mat){
     transparent:tr, alphaTest:tr?0.08:0, depthWrite:!tr
   });
   if(m.map) m.map.encoding=THREE.sRGBEncoding;
-  return m;
+  return FX.skinMat(m,mat);
 }
 function loadZombieModel(){
   const buf=window.ASSETS&&ASSETS.zombie;
@@ -2491,6 +2491,7 @@ function loadZombieModel(){
     const byName=(n)=>anims.filter(a=>a.name&&a.name.toLowerCase().indexOf(n)>=0)[0];
     ZMODEL.clip = byName("idle") || anims[0] || null;
     ZMODEL.walk = byName("walk") || (anims.length>1?anims[1]:null);
+    FX.zombieClips(anims);
     ZMODEL.ready = true;
     for(const z of zombies) attachModel(z);
   },()=>{ /* 失敗時は簡易モデルのまま */ });
@@ -2544,9 +2545,11 @@ function attachModel(z){
   inst.scale.setScalar(ZMODEL.scale);
   inst.position.y=ZMODEL.yOff;
   inst.rotation.y=ZMODEL.yaw;
+  FX.zombieVariant(inst,z.id);
   z.g.remove(z.vis);
   z.g.add(inst);
   z.model=inst;
+  if(FX.zombieAttach(z,inst)) return;
   if(ZMODEL.clip){
     const mixer=new THREE.AnimationMixer(inst);
     const act=mixer.clipAction(ZMODEL.clip);
@@ -2870,7 +2873,8 @@ function drawZombies(dt){
     z.g.rotation.y=z.dir;
     if(z.mixer){ z.mixer.update(dt*(z.state==="chase"?1.15:0.7)); }
     z.g.rotation.z=z.hurtT>0?Math.sin(z.t*22)*0.14:0;
-    if(z.model){
+    if(z.an){ FX.zombieAnim(z,dt); }
+    else if(z.model){
       const near=Math.abs(z.y-player.pos.y)<2.4&&
                  Math.hypot(z.pos.x-player.pos.x,z.pos.z-player.pos.z)<34;
       if(near){
@@ -2918,7 +2922,7 @@ function applyZdie(id,by){
   if(!z) return;
   const wasBoss=(z===boss);
   FX.zombieDown(z,by,wasBoss);
-  removeZombie(z);
+  if(!FX.zombieDie(z)) removeZombie(z);
   sfx("zdown");
   if(!wasBoss&&by!=null&&P[by]){
     P[by].kills=(P[by].kills||0)+1;
